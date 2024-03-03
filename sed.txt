@@ -1,0 +1,2 @@
+if you master sed you will be a professional one
+hello sed is a powerful tool
