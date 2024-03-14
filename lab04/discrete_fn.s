@@ -77,6 +77,17 @@ main:
 # Think: why might having a1 be useful?
 f:
     # YOUR CODE GOES HERE!
+.data
+# Function outputs as a lookup table, indexed from 0 to 6 (corresponding to inputs -3 to 3)
+
+.text
+# Assuming a0 is the input value for the function
+
+    addi a0, a0, 3          # Adjust input value to use as an index (0 to 6)
+    slli a0, a0, 2          # Scale index by 4 (since each .word is 4 bytes)
+    add a0, a1, a0          # Add offset to base address to get the exact address
+    lw a0, 0(a0)            # Load the word at the calculated address into a0
+    jr ra                   # Return to the caller
 
     jr ra               # Always remember to jr ra after your function!
 

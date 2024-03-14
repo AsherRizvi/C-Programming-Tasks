@@ -1,5 +1,7 @@
+# Declare global symbols
 .globl map
 
+# Data section
 .data
 arrays: .word 5, 6, 7, 8, 9
         .word 1, 2, 3, 4, 7
@@ -10,139 +12,147 @@ arrays: .word 5, 6, 7, 8, 9
 start_msg:  .asciiz "Lists before: \n"
 end_msg:    .asciiz "Lists after: \n"
 
+# Text section
 .text
 main:
+    # Call create_default_list function to create a default linked list
     jal create_default_list
-    mv s0, a0   # v0 = s0 is head of node list
+    mv s0, a0   # Save the head of the node list in s0
 
-    #print "lists before: "
+    # Print "Lists before: "
     la a1, start_msg
     li a0, 4
     ecall
 
-    #print the list
+    # Print the list
     add a0, s0, x0
     jal print_list
 
-    # print a newline
+    # Print a newline
     jal print_newline
 
-    # issue the map call
-    add a0, s0, x0      # load the address of the first node into a0
-    la  a1, mystery     # load the address of the function into a1
-
+    # Call the map function
+    add a0, s0, x0
+    la  a1, mystery
     jal map
 
-    # print "lists after: "
+    # Print "Lists after: "
     la a1, end_msg
     li a0, 4
     ecall
 
-    # print the list
+    # Print the updated list
     add a0, s0, x0
     jal print_list
 
+    # Exit program
     li a0, 10
     ecall
 
+# Map function to apply a function to each element of the linked list
 map:
+    # Prologue
     addi sp, sp, -12
     sw ra, 0(sp)
     sw s1, 4(sp)
     sw s0, 8(sp)
 
-    beq a0, x0, done    # if we were given a null pointer, we're done.
+    beq a0, x0, done    # Base case: if a0 is null, exit
 
-    add s0, a0, x0      # save address of this node in s0
-    add s1, a1, x0      # save address of function in s1
-    add t0, x0, x0      # t0 is a counter
+    add s0, a0, x0      # Save address of current node in s0
+    add s1, a1, x0      # Save address of function in s1
+    add t0, x0, x0      # Counter
 
-    # remember that each node is 12 bytes long:
-    # - 4 for the array pointer
-    # - 4 for the size of the array
-    # - 4 more for the pointer to the next node
 
     # also keep in mind that we should not make ANY assumption on which registers
     # are modified by the callees, even when we know the content inside the functions 
     # we call. this is to enforce the abstraction barrier of calling convention.
 mapLoop:
-    add t1, s0, x0      # load the address of the array of current node into t1
+    # (FOURTH ERROR: Load the array's address into t1)
+    lw t1, 0(s0)        # load the address of the array of current node into t1 
     lw t2, 4(s0)        # load the size of the node's array into t2
-
-    add t1, t1, t0      # offset the array address by the count
+    
+    # (SECOND ERROR: t0 * 4 is the real offset in address.)
+    slli t3, t0, 2      
+    add t1, t1, t3      # offset the array address by the count
     lw a0, 0(t1)        # load the value at that address into a0
+
+    # (LAST ERROR: Store the value of the temporary registers!)
+    addi sp, sp, -12
+    sw t0, 0(sp)
+    sw t1, 4(sp)
+    sw t2, 8(sp)
 
     jalr s1             # call the function on that value.
 
-    sw a0, 0(t1)        # store the returned value back into the array
-    addi t0, t0, 1      # increment the count
-    bne t0, t2, mapLoop # repeat if we haven't reached the array size yet
+    lw t0, 0(sp)
+    lw t1, 4(sp)
+    lw t2, 8(sp)
+    addi sp, sp, 12     
+    # Store the returned value back into the array
+    sw a0, 0(t1)
 
-    la a0, 8(s0)        # load the address of the next node into a0
-    lw a1, 0(s1)        # put the address of the function back into a1 to prepare for the recursion
+    addi t0, t0, 1      # Increment the count
+    bne t0, t2, mapLoop # Repeat if we haven't reached the array size yet
 
-    jal  map            # recurse
+    lw a0, 8(s0)        # Load the address of the next node into a0
+    mv a1, s1           # Restore the address of the function into a1 to prepare for recursion
+    jal  map            # Recurse
+
 done:
+    # Epilogue
     lw s0, 8(sp)
     lw s1, 4(sp)
     lw ra, 0(sp)
     addi sp, sp, 12
-
-print_newline:
-    li a1, '\n'
-    li a0, 11
-    ecall
     jr ra
 
+# Sample function to apply to each element of the linked list
 mystery:
     mul t1, a0, a0
     add a0, t1, a0
     jr ra
 
+# Function to create a default linked list
 create_default_list:
-    addi sp, sp, -24
+    addi sp, sp, -4
     sw ra, 0(sp)
-    sw s0, 4(sp)
-    sw s1, 8(sp)
-    sw s2, 12(sp)
-    sw s3, 16(sp)
-    sw s4, 20(sp)
-    li s0, 0  # pointer to the last node we handled
-    li s1, 0  # number of nodes handled
-    li s2, 5  # size
+    li s0, 0  # Pointer to the last node handled
+    li s1, 0  # Number of nodes handled
+    li s2, 5  # Size of each node's array
     la s3, arrays
-loop: #do...
+
+loop:
     li a0, 12
-    jal malloc      # get memory for the next node
+    jal malloc      # Allocate memory for the next node
     mv s4, a0
     li a0, 20
-    jal  malloc     # get memory for this array
+    jal malloc      # Allocate memory for this node's array
 
-    sw a0, 0(s4)    # node->arr = malloc
+    sw a0, 0(s4)    # Set node->arr = malloc
     lw a0, 0(s4)
     mv a1, s3
-    jal fillArray   # copy ints over to node->arr
+    jal fillArray   # Copy integers over to node->arr
 
-    sw s2, 4(s4)    # node->size = size (4)
-    sw  s0, 8(s4)   # node-> next = previously created node
+    sw s2, 4(s4)    # Set node->size = size
+    sw  s0, 8(s4)   # Set node->next = previously created node
 
-    add s0, x0, s4  # last = node
-    addi s1, s1, 1  # i++
-    addi s3, s3, 20 # s3 points at next set of ints
+    add s0, x0, s4  # Update last to point to the current node
+    addi s1, s1, 1  # Increment nodes handled
+    addi s3, s3, 20 # Point to the next set of integers
+
     li t6 5
-    bne s1, t6, loop # ... while i!= 5
+    bne s1, t6, loop # Continue until all nodes are handled
+
     mv a0, s4
     lw ra, 0(sp)
-    lw s0, 4(sp)
-    lw s1, 8(sp)
-    lw s2, 12(sp)
-    lw s3, 16(sp)
-    lw s4, 20(sp)
-    addi sp, sp, 24
+    addi sp, sp, 4
     jr ra
 
-fillArray: lw t0, 0(a1) #t0 gets array element
-    sw t0, 0(a0) #node->arr gets array element
+# Helper function to fill the array of a node with integers
+fillArray:
+    lw t0, 0(a1) # t0 gets array element
+    sw t0, 0(a0) # node->arr gets array element
     lw t0, 4(a1)
     sw t0, 4(a0)
     lw t0, 8(a1)
@@ -153,33 +163,46 @@ fillArray: lw t0, 0(a1) #t0 gets array element
     sw t0, 16(a0)
     jr ra
 
+# Function to print the linked list
 print_list:
     bne a0, x0, printMeAndRecurse
-    jr ra   # nothing to print
+    jr ra   # Nothing to print
+
 printMeAndRecurse:
-    mv t0, a0 # t0 gets address of current node
-    lw t3, 0(a0) # t3 gets array of current node
-    li t1, 0  # t1 is index into array
+    mv t0, a0           # t0 gets the address of the current node
+    lw t3, 0(a0)        # t3 gets the array of the current node
+    li t1, 0            # t1 is index into array
+
 printLoop:
     slli t2, t1, 2
     add t4, t3, t2
-    lw a1, 0(t4) # a0 gets value in current node's array at index t1
-    li a0, 1  # preparte for print integer ecall
+    lw a1, 0(t4)        # a0 gets value in current node's array at index t1
+    li a0, 1            # Prepare for print integer ecall
     ecall
-    li a1, ' ' # a0 gets address of string containing space
-    li a0, 11  # prepare for print string ecall
+    li a1, ' '          # a0 gets address of string containing space
+    li a0, 11           # Prepare for print string ecall
     ecall
     addi t1, t1, 1
-  li t6 5
-    bne t1, t6, printLoop # ... while i!= 5
+    li t6 5
+    bne t1, t6, printLoop   # Continue while i != 5
+
+    li a1, '\n'         # Print newline character
+    li a0, 11
+    ecall
+
+    lw a0, 8(t0)        # a0 gets address of next node
+    j print_list        # Recurse
+
+# Function to print a newline
+print_newline:
     li a1, '\n'
     li a0, 11
     ecall
-    lw a0, 8(t0) # a0 gets address of next node
-    j print_list # recurse. We don't have to use jal because we already have where we want to return to in ra
+    jr ra
 
+# Function to allocate memory
 malloc:
-    mv a1, a0 # Move a0 into a1 so that we can do the syscall correctly
+    mv a1, a0           # Move a0 into a1 so that we can do the syscall correctly
     li a0, 9
     ecall
     jr ra

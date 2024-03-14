@@ -1,0 +1,27 @@
+
+
+1.Mistake: In the map function's prologue, saving and restoring registers on the stack were not consistent, leading to incorrect preservation of the s0 register.
+
+   Correction: Ensured that the registers were consistently saved and restored in the prologue and epilogue.
+
+2. Mistake: In the map function, the size of the node's array was incorrectly loaded into t2 outside the loop, leading to incorrect array traversal.
+
+   Correction: Moved the loading of the array size (t2) inside the loop to correctly traverse the array.
+
+3. Mistake: The map function did not correctly preserve the t0 register, which was used as a counter in the loop.
+
+   Correction: Added saving and restoring of the t0 register in the prologue and epilogue of the map function.
+
+4. Mistake: The map function did not correctly update the array address (t1) inside the loop, leading to incorrect access to array elements.
+
+   Correction: Updated the array address inside the loop by adding the offset (t0) to the base address (s0).
+
+5. Mistake: The map function incorrectly loaded the next node's function address (a1) outside the loop, resulting in incorrect recursion.
+
+   Correction: Moved the loading of the function address (a1) inside the loop to correctly set up the recursion.
+
+6. Mistake: The map function used a0 to store the next node's address but did not preserve it before the recursive call.
+
+   Correction: Saved and restored the a0 register in the prologue and epilogue of the map function to ensure correct recursion.
+
+These corrections address the identified mistakes in the `megalistmanips.s` file.

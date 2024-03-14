@@ -37,15 +37,17 @@ main:
     sw s3, 12(sp)
     sw ra, 16(sp)
     # END PROLOGUE
-    addi t0, x0, 0
-    addi s0, x0, 0
-    la s1, source
-    la s2, dest
+    addi t0, x0, 0  # Initialize t0 (k) to 0
+    addi s0, x0, 0  # Initialize s0 (sum) to 0
+    la s1, source   # Load address of the source array into s1
+    la s2, dest     # Load address of the dest array into s2
 loop:
-    slli s3, t0, 2
+    slli s3, t0, 2   # Calculate the offset by shifting t0 left by 2 (multiply by 4 for word size)
+    add t1, s1, s3   # Calculate the address of source[k]
     add t1, s1, s3
-    lw t2, 0(t1)
-    beq t2, x0, exit
+    add t3, s2, s3 
+    lw t2, 0(t1)     # Load the value from source[k] into t2
+    beq t2, x0, exit  # Exit the loop if t2 (source[k]) is 0
     add a0, x0, t2
     addi sp, sp, -8
     sw t0, 0(sp)
@@ -55,11 +57,11 @@ loop:
     lw t2, 4(sp)
     addi sp, sp, 8
     add t2, x0, a0
-    add t3, s2, s3
+    add t3, s2, s3   # Calculate the address of dest[k]
     sw t2, 0(t3)
-    add s0, s0, t2
-    addi t0, t0, 1
-    jal x0, loop
+    add s0, s0, t2     # Add the result of fun(source[k]) to s0
+    addi t0, t0, 1     # Increment t0 (k) by 1
+    jal x0, loop       # Jump back to the loop label
 exit:
     add a0, x0, s0
     # BEGIN EPILOGUE
